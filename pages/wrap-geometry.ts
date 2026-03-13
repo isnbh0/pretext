@@ -125,7 +125,7 @@ export function getRectIntervalsForBand(
 // - blocked: 200..310
 // - result:  80..200, 310..420
 //
-// On the logo-columns page, the base interval is one full column row,
+// On the dynamic-layout page, the base interval is one full column row,
 // the blocked intervals come from the title/logo shapes at that band,
 // and the returned intervals are the candidate text slots for that row.
 //

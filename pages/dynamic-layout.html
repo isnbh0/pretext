@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Logo Columns</title>
+    <title>Dynamic Layout</title>
     <style>
       :root {
         color-scheme: light;
@@ -26,7 +26,7 @@
       }
 
       body {
-        font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+        font-family: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Palatino, serif;
         cursor: default;
       }
 
@@ -131,7 +131,12 @@
         font-weight: 450;
         letter-spacing: 0.002em;
         user-select: text;
+        transition: color 120ms ease;
         z-index: 1;
+      }
+
+      .line:hover {
+        color: var(--accent);
       }
     </style>
   </head>
@@ -139,10 +144,10 @@
     <main class="page">
       <div class="atmosphere atmosphere--left"></div>
       <div class="atmosphere atmosphere--right"></div>
-      <p class="hint-pill">Everything laid out in JS! Resize browser horizontally & vertically, Click the 2 logos.</p>
+      <p class="hint-pill">Everything laid out in JS. Resize horizontally and vertically, then click the logos.</p>
       <div id="stage" class="stage"></div>
     </main>
 
-    <script type="module" src="./logo-columns.ts"></script>
+    <script type="module" src="./dynamic-layout.ts"></script>
   </body>
 </html>

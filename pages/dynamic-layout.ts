@@ -1,5 +1,5 @@
 /*
-This page's made to show off our font APIs:
+This page's made to show off our layout APIs:
 - Title lines are measured and placed by our own layout engine, not inferred from DOM flow.
 - Title font size is fit using repeated API calls so whole words survive.
 - The title itself now participates in obstacle routing against the OpenAI logo.
@@ -22,7 +22,7 @@ This page's made to show off our font APIs:
 - There is no DOM text measurement loop feeding layout.
 */
 import { layoutNextLine, layoutWithLines, prepareWithSegments, type LayoutCursor, type LayoutLine, type PreparedTextWithSegments } from '../src/layout.ts'
-import { BODY_COPY } from './logo-columns-text.ts'
+import { BODY_COPY } from './dynamic-layout-text.ts'
 import openaiLogoUrl from './assets/openai-symbol.svg'
 import claudeLogoUrl from './assets/claude-symbol.svg'
 import {
@@ -37,8 +37,8 @@ import {
   type Rect,
 } from './wrap-geometry.ts'
 
-const BODY_FONT = '16px "Helvetica Neue", Helvetica, Arial, sans-serif'
-const BODY_LINE_HEIGHT = 25
+const BODY_FONT = '20px "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Palatino, serif'
+const BODY_LINE_HEIGHT = 32
 const CREDIT_TEXT = 'Leopold Aschenbrenner'
 const CREDIT_FONT = '12px "Helvetica Neue", Helvetica, Arial, sans-serif'
 const CREDIT_LINE_HEIGHT = 16
@@ -65,6 +65,7 @@ type PositionedLine = {
   x: number
   y: number
   width: number
+  tooltip: string
   text: string
 }
 
@@ -266,6 +267,10 @@ function layoutColumn(
       x: Math.round(slot.left),
       y: Math.round(lineTop),
       width: line.width,
+      tooltip:
+        `${line.start.segmentIndex}:${line.start.graphemeIndex} → ` +
+        `${line.end.segmentIndex}:${line.end.graphemeIndex} • ${line.width.toFixed(2)}px` +
+        (line.trailingDiscretionaryHyphen ? ' • discretionary hyphen' : ''),
       text: line.text,
     })
 
@@ -310,6 +315,7 @@ function projectBodyLines(lines: PositionedLine[], className: string, font: stri
     const element = domCache.bodyLines[startIndex + offset]!
     element.className = className
     element.textContent = line.text
+    element.title = line.tooltip
     element.style.left = `${line.x}px`
     element.style.top = `${line.y}px`
     element.style.font = font

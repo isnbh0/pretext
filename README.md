@@ -105,12 +105,9 @@ bun run corpus-font-matrix --id=ar-risalat-al-ghufran-part-1 --samples=5  # samp
 
 Pages:
 - `/demo.html` — manual line-placement demo streamed from repeated `layoutNextLine()` calls
-- `/columns.html` — three-column userland reflow demo streamed directly from `layoutNextLine()`
-- `/contour.html` — variable-width contour demo built on `layoutNextLine()`
-- `/editorial.html` — anchored-shape editorial layout demo built from repeated `layoutNextLine()` calls
+- `/dynamic-layout.html` — fixed-height editorial spread with a continuous two-column flow, obstacle-aware title routing, and live logo-driven reflow
 - `/chronicle.html` — poster-like editorial spread with procedural contour art and text routed around fixed copy blocks
 - `/blob-lab.html` — grid of seeded polygon blobs that warp as a pure function of viewport size
-- `/sync.html` — three independently wrapped panes that stay anchored to the same text cursor while you scroll any one of them
 - `/accuracy.html` — sweep across fonts, sizes, widths, i18n texts
 - `/benchmark.html` — performance comparison
 - `/bubbles.html` — bubble shrinkwrap demo
