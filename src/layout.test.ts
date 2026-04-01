@@ -772,3 +772,186 @@ describe('layout invariants', () => {
     }
   })
 })
+
+describe('word-break: keep-all', () => {
+  // --- Prepare invariants ---
+
+  test('Korean words stay as word-level segments, not syllable-split', () => {
+    const normal = prepareWithSegments('안녕하세요 세계', FONT)
+    const keepAll = prepareWithSegments('안녕하세요 세계', FONT, { wordBreak: 'keep-all' })
+
+    // Under normal mode, CJK syllables get grapheme-split into individual segments.
+    // Under keep-all, the word-level segments should remain intact.
+    const normalTextSegments = normal.segments.filter(s => s.trim().length > 0)
+    const keepAllTextSegments = keepAll.segments.filter(s => s.trim().length > 0)
+
+    // Normal splits syllables; keep-all preserves words
+    expect(keepAllTextSegments.length).toBeLessThan(normalTextSegments.length)
+    // keep-all should have exactly 2 text segments: '안녕하세요' and '세계'
+    expect(keepAllTextSegments).toEqual(['안녕하세요', '세계'])
+  })
+
+  test('Chinese text stays as word-level segments, not grapheme-split', () => {
+    const normal = prepareWithSegments('你好世界', FONT)
+    const keepAll = prepareWithSegments('你好世界', FONT, { wordBreak: 'keep-all' })
+
+    const normalTextSegments = normal.segments.filter(s => s.trim().length > 0)
+    const keepAllTextSegments = keepAll.segments.filter(s => s.trim().length > 0)
+
+    // Normal mode grapheme-splits CJK; keep-all keeps them together
+    expect(keepAllTextSegments.length).toBeLessThan(normalTextSegments.length)
+  })
+
+  test('Japanese text stays as word-level segments, not grapheme-split', () => {
+    const normal = prepareWithSegments('こんにちは世界', FONT)
+    const keepAll = prepareWithSegments('こんにちは世界', FONT, { wordBreak: 'keep-all' })
+
+    const normalTextSegments = normal.segments.filter(s => s.trim().length > 0)
+    const keepAllTextSegments = keepAll.segments.filter(s => s.trim().length > 0)
+
+    expect(keepAllTextSegments.length).toBeLessThan(normalTextSegments.length)
+  })
+
+  test('CJK punctuation attachment (kinsoku) still works under keep-all', () => {
+    // Kinsoku start chars like 。should attach to the preceding segment
+    const keepAll = prepareWithSegments('世界。', FONT, { wordBreak: 'keep-all' })
+    const textSegments = keepAll.segments.filter(s => s.trim().length > 0)
+
+    // The period should be attached to the preceding word, not a separate segment
+    expect(textSegments.length).toBe(1)
+    expect(textSegments[0]).toBe('世界。')
+  })
+
+  test('non-CJK text segments identical between normal and keep-all', () => {
+    const text = 'The quick brown fox jumps.'
+    const normal = prepareWithSegments(text, FONT)
+    const keepAll = prepareWithSegments(text, FONT, { wordBreak: 'keep-all' })
+
+    expect(keepAll.segments).toEqual(normal.segments)
+    expect(keepAll.widths).toEqual(normal.widths)
+  })
+
+  test('omitting wordBreak gives same result as wordBreak normal', () => {
+    const text = '안녕하세요 세계 hello'
+    const implicit = prepareWithSegments(text, FONT)
+    const explicit = prepareWithSegments(text, FONT, { wordBreak: 'normal' })
+
+    expect(explicit.segments).toEqual(implicit.segments)
+    expect(explicit.widths).toEqual(implicit.widths)
+  })
+
+  // --- Layout invariants ---
+
+  test('Korean breaks at spaces, not syllables — fewer lines than normal at same width', () => {
+    const text = '안녕하세요 세계입니다'
+    // Width that fits a few syllables but not a whole Korean word
+    // Each Hangul char is 16px wide. '안녕하세요' = 5 * 16 = 80px
+    const width = 50
+
+    const normalResult = layout(prepare(text, FONT), width, LINE_HEIGHT)
+    const keepAllResult = layout(prepare(text, FONT, { wordBreak: 'keep-all' }), width, LINE_HEIGHT)
+
+    // Under keep-all, words can't break at syllables, so overflow-wrap kicks in
+    // at grapheme boundaries. The key invariant: with keep-all the engine tries
+    // to keep whole words, so at many widths there will be fewer lines.
+    // At very narrow widths both degrade to grapheme breaks, but normal mode
+    // actively puts CJK grapheme breaks mid-word whereas keep-all tries the
+    // word first.
+    expect(keepAllResult.lineCount).toBeLessThanOrEqual(normalResult.lineCount)
+  })
+
+  test('overflow-wrap fallback — Korean word wider than container breaks at grapheme boundaries', () => {
+    const text = '안녕하세요'
+    // Each Hangul char is 16px, word is 80px. Use width that fits 2 chars.
+    const width = 35
+
+    const keepAll = prepareWithSegments(text, FONT, { wordBreak: 'keep-all' })
+    const lines = layoutWithLines(keepAll, width, LINE_HEIGHT)
+
+    // Should still break — overflow-wrap: break-word kicks in
+    expect(lines.lineCount).toBeGreaterThan(1)
+    // Each line should contain partial graphemes from the word
+    for (const line of lines.lines) {
+      expect(line.text.length).toBeGreaterThan(0)
+    }
+  })
+
+  test('prepare and prepareWithSegments agree under keep-all', () => {
+    const text = '안녕하세요 세계 hello world'
+    const opts = { wordBreak: 'keep-all' as const }
+    const opaque = prepare(text, FONT, opts)
+    const rich = prepareWithSegments(text, FONT, opts)
+
+    const widths = [40, 80, 120, 200, 400]
+    for (const width of widths) {
+      const opaqueResult = layout(opaque, width, LINE_HEIGHT)
+      const richResult = layout(rich, width, LINE_HEIGHT)
+      expect(richResult).toEqual(opaqueResult)
+    }
+  })
+
+  test('layoutNextLine reproduces layoutWithLines under keep-all', () => {
+    const text = '안녕하세요 세계입니다 hello world'
+    const prepared = prepareWithSegments(text, FONT, { wordBreak: 'keep-all' })
+    const width = 100
+
+    const batched = layoutWithLines(prepared, width, LINE_HEIGHT)
+    const streamedLines: Array<{ text: string; width: number }> = []
+    let cursor: { segmentIndex: number; graphemeIndex: number } = { segmentIndex: 0, graphemeIndex: 0 }
+
+    while (true) {
+      const line = layoutNextLine(prepared, cursor, width)
+      if (line === null) break
+      streamedLines.push({ text: line.text, width: line.width })
+      cursor = line.end
+    }
+
+    expect(streamedLines.length).toBe(batched.lineCount)
+    for (let i = 0; i < streamedLines.length; i++) {
+      expect(streamedLines[i]!.text).toBe(batched.lines[i]!.text)
+      expect(streamedLines[i]!.width).toBeCloseTo(batched.lines[i]!.width, 10)
+    }
+  })
+
+  test('countPreparedLines stays aligned with walked line counter under keep-all', () => {
+    const texts = [
+      '안녕하세요 세계입니다',
+      '你好世界 测试文本',
+      'こんにちは世界',
+      '한국어 English 混合テスト',
+    ]
+    const widths = [40, 80, 120, 200]
+
+    for (const text of texts) {
+      const prepared = prepareWithSegments(text, FONT, { wordBreak: 'keep-all' })
+      for (const width of widths) {
+        const counted = countPreparedLines(prepared, width)
+        const walked = walkPreparedLines(prepared, width)
+        expect(counted).toBe(walked)
+      }
+    }
+  })
+
+  test('mixed CJK/Latin — CJK stays together, Latin breaks normally', () => {
+    const text = '한국어 English 텍스트'
+    const keepAll = prepareWithSegments(text, FONT, { wordBreak: 'keep-all' })
+    const textSegments = keepAll.segments.filter(s => s.trim().length > 0)
+
+    // Korean words should stay intact, English word should stay intact
+    expect(textSegments).toContain('한국어')
+    expect(textSegments).toContain('English')
+    expect(textSegments).toContain('텍스트')
+  })
+
+  test('composes with whiteSpace pre-wrap', () => {
+    const text = '안녕\n세계'
+    const prepared = prepareWithSegments(text, FONT, {
+      whiteSpace: 'pre-wrap',
+      wordBreak: 'keep-all',
+    })
+
+    const lines = layoutWithLines(prepared, 400, LINE_HEIGHT)
+    // Hard break should still be respected
+    expect(lines.lines.map(l => l.text)).toEqual(['안녕', '세계'])
+  })
+})
