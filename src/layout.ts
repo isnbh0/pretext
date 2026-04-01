@@ -46,6 +46,7 @@ import {
   type SegmentBreakKind,
   type TextAnalysis,
   type WhiteSpaceMode,
+  type WordBreakMode,
 } from './analysis.js'
 import {
   clearMeasurementCaches,
@@ -146,6 +147,7 @@ export type PrepareProfile = {
 
 export type PrepareOptions = {
   whiteSpace?: WhiteSpaceMode
+  wordBreak?: WordBreakMode
 }
 
 export type PreparedLineChunk = {
@@ -192,6 +194,7 @@ function measureAnalysis(
   analysis: TextAnalysis,
   font: string,
   includeSegments: boolean,
+  wordBreak?: WordBreakMode,
 ): InternalPreparedText | PreparedTextWithSegments {
   const graphemeSegmenter = getSharedGraphemeSegmenter()
   const engineProfile = getEngineProfile()
@@ -276,7 +279,7 @@ function measureAnalysis(
 
     const segMetrics = getSegmentMetrics(segText, cache)
 
-    if (segKind === 'text' && segMetrics.containsCJK) {
+    if (segKind === 'text' && segMetrics.containsCJK && wordBreak !== 'keep-all') {
       let unitText = ''
       let unitStart = 0
 
@@ -428,7 +431,7 @@ function prepareInternal(
   options?: PrepareOptions,
 ): InternalPreparedText | PreparedTextWithSegments {
   const analysis = analyzeText(text, getEngineProfile(), options?.whiteSpace)
-  return measureAnalysis(analysis, font, includeSegments)
+  return measureAnalysis(analysis, font, includeSegments, options?.wordBreak)
 }
 
 // Diagnostic-only helper used by the browser benchmark harness to separate the
