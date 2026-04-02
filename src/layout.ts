@@ -279,21 +279,32 @@ function measureAnalysis(
 
     const segMetrics = getSegmentMetrics(segText, cache)
 
-    // keep-all: merge consecutive CJK text segments into one unbreakable unit
-    // with per-grapheme overflow-wrap fallback. The segmenter's word boundaries
-    // between CJK words (e.g. ['你好', '世界']) are an intermediate artifact of
-    // Intl.Segmenter — they only existed to feed the grapheme decomposition that
-    // keep-all skips. Merging rewinds those false break opportunities.
-    if (segKind === 'text' && segMetrics.containsCJK && wordBreak === 'keep-all') {
+    // keep-all: merge consecutive text segments that touch CJK into one
+    // unbreakable unit with per-grapheme overflow-wrap fallback.  Under
+    // keep-all, CJK character-level break opportunities are suppressed —
+    // including breaks at CJK↔Latin boundaries when no space separates
+    // them (e.g. '日本語とEnglishの混合テスト' is one unit).  The merge
+    // triggers whenever the current segment contains CJK, OR when a
+    // non-CJK text segment is followed (without an intervening space) by
+    // a CJK text segment.
+    if (segKind === 'text' && wordBreak === 'keep-all') {
+      let hasCJKInRun = segMetrics.containsCJK
+      if (!hasCJKInRun) {
+        // Look ahead: does a later adjacent text segment contain CJK?
+        for (let peek = mi + 1; peek < analysis.len; peek++) {
+          if (analysis.kinds[peek]! !== 'text') break
+          if (getSegmentMetrics(analysis.texts[peek]!, cache).containsCJK) { hasCJKInRun = true; break }
+        }
+      }
+      if (!hasCJKInRun) {
+        // Purely non-CJK run — fall through to normal processing
+      } else {
       let mergedText = segText
       let mergedEnd = mi
       while (mergedEnd + 1 < analysis.len) {
         const nextKind = analysis.kinds[mergedEnd + 1]!
         if (nextKind !== 'text') break
-        const nextText = analysis.texts[mergedEnd + 1]!
-        const nextMetrics = getSegmentMetrics(nextText, cache)
-        if (!nextMetrics.containsCJK) break
-        mergedText += nextText
+        mergedText += analysis.texts[mergedEnd + 1]!
         mergedEnd++
       }
 
@@ -317,6 +328,7 @@ function measureAnalysis(
       }
       mi = mergedEnd
       continue
+      }
     }
 
     if (segKind === 'text' && segMetrics.containsCJK) {

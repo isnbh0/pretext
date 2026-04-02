@@ -125,6 +125,7 @@ const dir = parseStringFlag('dir') ?? 'ltr'
 const lang = parseStringFlag('lang') ?? (dir === 'rtl' ? 'ar' : 'en')
 const method = parseStringFlag('method')
 const whiteSpace = parseStringFlag('whiteSpace') === 'pre-wrap' ? 'pre-wrap' : 'normal'
+const wordBreak = parseStringFlag('wordBreak') === 'keep-all' ? 'keep-all' : 'normal'
 
 let serverProcess: ChildProcess | null = null
 const lock = await acquireBrowserAutomationLock(browser)
@@ -143,6 +144,7 @@ try {
     `&dir=${encodeURIComponent(dir)}` +
     `&lang=${encodeURIComponent(lang)}` +
     `&whiteSpace=${encodeURIComponent(whiteSpace)}` +
+    (wordBreak === 'keep-all' ? `&wordBreak=keep-all` : '') +
     (method === null ? '' : `&method=${encodeURIComponent(method)}`) +
     `&requestId=${encodeURIComponent(requestId)}`
   const report = await loadHashReport<ProbeReport>(session, url, requestId, browser)

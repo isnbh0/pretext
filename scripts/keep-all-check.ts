@@ -144,6 +144,44 @@ const ORACLE_CASES: OracleCase[] = [
     font: '18px serif',
     lineHeight: 32,
   },
+  // --- Known-red cases: keep-all merge is too aggressive ---
+  // These fail because the merge swallows Latin break opportunities
+  // and disrupts kinsoku rules. Fix the merge, then flip to green.
+  {
+    label: 'cjk hyphen latin',
+    text: '日本語foo-bar',
+    width: 180,
+    font: '18px serif',
+    lineHeight: 32,
+  },
+  {
+    label: 'latin hyphen cjk height',
+    text: 'foo-bar日本語',
+    width: 140,
+    font: '18px serif',
+    lineHeight: 32,
+  },
+  {
+    label: 'cjk em-dash cjk',
+    text: '日本語—テスト',
+    width: 140,
+    font: '18px serif',
+    lineHeight: 32,
+  },
+  {
+    label: 'kinsoku opening bracket',
+    text: '」「テスト」「です',
+    width: 140,
+    font: '18px serif',
+    lineHeight: 32,
+  },
+  {
+    label: 'kinsoku period',
+    text: '日本語。世界。テスト',
+    width: 140,
+    font: '18px serif',
+    lineHeight: 32,
+  },
   {
     label: 'korean pre-wrap compose',
     text: '안녕\n세계입니다',
@@ -162,9 +200,12 @@ function buildProbeUrl(
   baseUrl: string,
   requestId: string,
   testCase: OracleCase,
+  browser: AutomationBrowserKind,
 ): string {
   const dir = testCase.dir ?? 'ltr'
   const lang = testCase.lang ?? (dir === 'rtl' ? 'ar' : 'en')
+  // Safari Range extraction over-advances on CJK keep-all text; use span there.
+  const method = testCase.whiteSpace === 'pre-wrap' || browser === 'safari' ? 'span' : 'range'
   let url =
     `${baseUrl}/probe?text=${encodeURIComponent(testCase.text)}` +
     `&width=${testCase.width}` +
@@ -173,9 +214,10 @@ function buildProbeUrl(
     `&dir=${encodeURIComponent(dir)}` +
     `&lang=${encodeURIComponent(lang)}` +
     `&wordBreak=keep-all` +
+    `&method=${method}` +
     `&requestId=${encodeURIComponent(requestId)}`
   if (testCase.whiteSpace === 'pre-wrap') {
-    url += `&whiteSpace=pre-wrap&method=span`
+    url += `&whiteSpace=pre-wrap`
   }
   return url
 }
@@ -222,7 +264,7 @@ async function runBrowser(browser: AutomationBrowserKind, port: number): Promise
 
     for (const testCase of ORACLE_CASES) {
       const requestId = `${browser}-${Date.now()}-${Math.random().toString(36).slice(2)}`
-      const url = buildProbeUrl(pageServer.baseUrl, requestId, testCase)
+      const url = buildProbeUrl(pageServer.baseUrl, requestId, testCase, browser)
       const report = await loadHashReport<ProbeReport>(session, url, requestId, reportBrowser, timeoutMs)
       printCaseResult(browser, testCase, report)
       if (!reportIsExact(report)) ok = false
