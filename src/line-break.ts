@@ -147,6 +147,7 @@ function countPreparedLinesSimple(prepared: PreparedLineBreakData, maxWidth: num
   let lineCount = 0
   let lineW = 0
   let hasContent = false
+  let hasPendingBreak = false
 
   function placeOnFreshLine(segmentIndex: number): void {
     const w = widths[segmentIndex]!
@@ -182,18 +183,43 @@ function countPreparedLinesSimple(prepared: PreparedLineBreakData, maxWidth: num
 
     if (!hasContent) {
       placeOnFreshLine(i)
+      hasPendingBreak = false
       continue
     }
 
     const newW = lineW + w
     if (newW > maxWidth + lineFitEpsilon) {
       if (isSimpleCollapsibleSpace(kind)) continue
+      if (engineProfile.preferFillBeforeGraphemeBreak && !hasPendingBreak && w > maxWidth && breakableWidths[i] !== null) {
+        const gWidths = breakableWidths[i]!
+        const gPrefixWidths = breakablePrefixWidths[i] ?? null
+        for (let g = 0; g < gWidths.length; g++) {
+          const gw = getBreakableAdvance(
+            gWidths,
+            gPrefixWidths,
+            g,
+            engineProfile.preferPrefixWidthsForBreakableRuns,
+          )
+          if (lineW > 0 && lineW + gw > maxWidth + lineFitEpsilon) {
+            lineCount++
+            lineW = gw
+          } else {
+            if (lineW === 0) lineCount++
+            lineW += gw
+          }
+        }
+        hasContent = true
+        hasPendingBreak = false
+        continue
+      }
       lineW = 0
       hasContent = false
+      hasPendingBreak = false
       placeOnFreshLine(i)
       continue
     }
 
+    if (canBreakAfter(kind)) hasPendingBreak = true
     lineW = newW
   }
 
@@ -353,7 +379,7 @@ function walkPreparedLinesSimple(
       }
 
       if (w > maxWidth && breakableWidths[i] !== null) {
-        emitCurrentLine()
+        if (!engineProfile.preferFillBeforeGraphemeBreak) emitCurrentLine()
         appendBreakableSegment(i)
         i++
         continue
@@ -643,7 +669,7 @@ export function walkPreparedLines(
         }
 
         if (w > maxWidth && breakableWidths[i] !== null) {
-          emitCurrentLine()
+          if (!engineProfile.preferFillBeforeGraphemeBreak) emitCurrentLine()
           appendBreakableSegment(i)
           i++
           continue
@@ -914,8 +940,10 @@ export function layoutNextLineRange(
       }
 
       if (w > maxWidth && breakableWidths[i] !== null) {
-        const currentLine = finishLine()
-        if (currentLine !== null) return currentLine
+        if (!engineProfile.preferFillBeforeGraphemeBreak) {
+          const currentLine = finishLine()
+          if (currentLine !== null) return currentLine
+        }
         const line = appendBreakableSegmentFrom(i, 0)
         if (line !== null) return line
       }
@@ -1067,8 +1095,10 @@ function layoutNextLineRangeSimple(
       }
 
       if (w > maxWidth && breakableWidths[i] !== null) {
-        const currentLine = finishLine()
-        if (currentLine !== null) return currentLine
+        if (!engineProfile.preferFillBeforeGraphemeBreak) {
+          const currentLine = finishLine()
+          if (currentLine !== null) return currentLine
+        }
         const line = appendBreakableSegmentFrom(i, 0)
         if (line !== null) return line
       }

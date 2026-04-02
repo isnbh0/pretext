@@ -13,6 +13,7 @@ export type EngineProfile = {
   carryCJKAfterClosingQuote: boolean
   preferPrefixWidthsForBreakableRuns: boolean
   preferEarlySoftHyphenBreak: boolean
+  preferFillBeforeGraphemeBreak: boolean
 }
 
 let measureContext: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null = null
@@ -71,6 +72,7 @@ export function getEngineProfile(): EngineProfile {
       carryCJKAfterClosingQuote: false,
       preferPrefixWidthsForBreakableRuns: false,
       preferEarlySoftHyphenBreak: false,
+      preferFillBeforeGraphemeBreak: false,
     }
     return cachedEngineProfile
   }
@@ -96,6 +98,7 @@ export function getEngineProfile(): EngineProfile {
     carryCJKAfterClosingQuote: isChromium,
     preferPrefixWidthsForBreakableRuns: isSafari,
     preferEarlySoftHyphenBreak: isSafari,
+    preferFillBeforeGraphemeBreak: isSafari,
   }
   return cachedEngineProfile
 }
