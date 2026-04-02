@@ -144,9 +144,6 @@ const ORACLE_CASES: OracleCase[] = [
     font: '18px serif',
     lineHeight: 32,
   },
-  // --- Known-red cases: keep-all merge is too aggressive ---
-  // These fail because the merge swallows Latin break opportunities
-  // and disrupts kinsoku rules. Fix the merge, then flip to green.
   {
     label: 'cjk hyphen latin',
     text: '日本語foo-bar',

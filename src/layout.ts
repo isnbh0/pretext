@@ -243,6 +243,28 @@ function measureAnalysis(
     if (segments !== null) segments.push(text)
   }
 
+  function lastCodePointOf(s: string): string {
+    const len = s.length
+    if (len === 0) return ''
+    const last = s.charCodeAt(len - 1)
+    if (last >= 0xDC00 && last <= 0xDFFF && len >= 2) {
+      const prev = s.charCodeAt(len - 2)
+      if (prev >= 0xD800 && prev <= 0xDBFF) {
+        return s.slice(len - 2)
+      }
+    }
+    return s[len - 1]!
+  }
+
+  function isKeepAllMergeTerminator(ch: string): boolean {
+    if (leftStickyPunctuation.has(ch)) return true
+    if (!kinsokuStart.has(ch)) return false
+    // Iteration/prolonged marks are word-internal, not terminators
+    const cp = ch.codePointAt(0)!
+    return cp !== 0x30FC && cp !== 0x3005 && cp !== 0x303B &&
+           cp !== 0x309D && cp !== 0x309E && cp !== 0x30FD && cp !== 0x30FE
+  }
+
   for (let mi = 0; mi < analysis.len; mi++) {
     preparedStartByAnalysisIndex[mi] = widths.length
     const segText = analysis.texts[mi]!
@@ -287,12 +309,13 @@ function measureAnalysis(
     // triggers whenever the current segment contains CJK, OR when a
     // non-CJK text segment is followed (without an intervening space) by
     // a CJK text segment.
-    if (segKind === 'text' && wordBreak === 'keep-all') {
+    if (segKind === 'text' && wordBreak === 'keep-all' && segWordLike) {
       let hasCJKInRun = segMetrics.containsCJK
       if (!hasCJKInRun) {
         // Look ahead: does a later adjacent text segment contain CJK?
         for (let peek = mi + 1; peek < analysis.len; peek++) {
           if (analysis.kinds[peek]! !== 'text') break
+          if (!analysis.isWordLike[peek]!) break
           if (getSegmentMetrics(analysis.texts[peek]!, cache).containsCJK) { hasCJKInRun = true; break }
         }
       }
@@ -302,9 +325,17 @@ function measureAnalysis(
       let mergedText = segText
       let mergedEnd = mi
       while (mergedEnd + 1 < analysis.len) {
-        const nextKind = analysis.kinds[mergedEnd + 1]!
-        if (nextKind !== 'text') break
-        mergedText += analysis.texts[mergedEnd + 1]!
+        const nextIdx = mergedEnd + 1
+        if (analysis.kinds[nextIdx]! !== 'text') break
+        if (!analysis.isWordLike[nextIdx]!) break
+
+        const lastCh = lastCodePointOf(analysis.texts[mergedEnd]!)
+        if (isKeepAllMergeTerminator(lastCh)) break
+
+        const nextMetrics = getSegmentMetrics(analysis.texts[nextIdx]!, cache)
+        if (!isCJK(lastCh) && !nextMetrics.containsCJK) break
+
+        mergedText += analysis.texts[nextIdx]!
         mergedEnd++
       }
 
