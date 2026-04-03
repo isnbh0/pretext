@@ -141,6 +141,23 @@ async function smokeTypeScript(tarballPath: string): Promise<void> {
     throw new Error(`Unexpected TypeScript consumer error output:\n${combinedOutput}`)
   }
 
+  await writeFile(
+    path.join(projectDir, 'index.ts'),
+    [
+      "import { layout, prepare } from '@chenglou/pretext'",
+      "const prepared = prepare('안녕하세요', '16px Inter', { wordBreak: 'keep-all' })",
+      'const result = layout(prepared, 100, 20)',
+      'result.height satisfies number',
+      '',
+    ].join('\n'),
+  )
+
+  run([path.join(root, 'node_modules', '.bin', tscBinaryName()), '-p', 'tsconfig.json'], {
+    cwd: projectDir,
+    stdout: 'inherit',
+    stderr: 'inherit',
+  })
+
   console.log('ts ok')
 }
 

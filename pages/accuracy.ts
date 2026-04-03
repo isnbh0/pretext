@@ -285,7 +285,7 @@ function render() {
   clearNavigationReport()
   publishNavigationPhase('loading', requestId)
 
-  requestAnimationFrame(() => {
+  void document.fonts.ready.then(() => {
     try {
       publishNavigationPhase('measuring', requestId)
       const { total, mismatches, rows } = runSweep()

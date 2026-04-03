@@ -310,7 +310,10 @@ function getPublicLines(
       : computeOffsetFromCursor(prepared, line.start)
     const end = computeOffsetFromCursor(prepared, line.end)
     const content = getLineContent(line.text, end)
-    const contentEnd = end - (line.text.length - content.text.length)
+    // Anchor contentEnd to the start of the line plus visible content length.
+    // Using `end - (line.text.length - content.text.length)` would over-count by 1
+    // when line.end steps past a hard-break \n that layoutWithLines omits from line.text.
+    const contentEnd = start + content.text.length
     const logicalText = normalizedText.slice(start, contentEnd)
 
     return {
